@@ -4,36 +4,64 @@ import Message from './Message.jsx'
 import ChatBar from './ChatBar.jsx'
 
 class App extends Component {
-
+  socket = new WebSocket("ws://localhost:3001"); 
   constructor(props) {
     super(props);
     this.state = {
-      currentUser: 'Anonymous1',
-      messages: [{
-        id: 0,
-        type: 'chat',
-        username: 'Anonymous1',
-        content: "I won't be impressed with technology until I can download food."
-      }, {
-        id: 1,
-        type:'system',
-        username: 'system',
-        content: "Anonymous1 changed their name to nomnom."
-      }]
+      currentUser: 'Anonymous'+ this.randomNumber(),
+      messages: [],
+      clientCount: 0
     };
+    this.addMessage = this.addMessage.bind(this);
+    this.addNotification = this.addNotification.bind(this);
+    this.userColorMap = {};
+  }
+  
+  randomNumber () {
+    return Math.random().toString().substring(2,7);
   }
 
   componentDidMount() {
-    console.log("componentDidMount <App />");
-    setTimeout(() => {
-      console.log("Simulating incoming message");
-      // Add a new message to the list of messages in the data store
-      const newMessage = {id: 3, username: "Michelle", content: "Hello there!"};
-      const messages = this.state.messages.concat(newMessage)
-      // Update the state of the app component.
-      // Calling setState will trigger a call to render() in App and all child components.
-      this.setState({messages: messages})
-    }, 3000);
+    this.socket.onmessage = (event) => {
+      // The socket event data is encoded as a JSON string.
+      // This line turns it into an object
+      const data = JSON.parse(event.data);
+      switch(data.type) {
+        case "incomingMessage":
+          // handle incoming message
+          let sender = data.username;
+          this.userColorMap[sender] = this.userColorMap[sender] || this.randomHexColor();
+          data.color = this.userColorMap[sender];
+          let newMessages = this.state.messages.concat(data);
+          this.setState({messages: newMessages});
+          break;
+        case "incomingNotification":
+          // handle incoming notification
+          let oldUser = data.currentUser;
+          let newUser = data.newUser;
+          if(oldUser === 'Anonymous'){
+            this.userColorMap[newUser] = this.randomHexColor();
+          } else {
+            this.userColorMap[newUser] = this.userColorMap[oldUser];
+          }
+          let newNotification = this.state.messages.concat(data);
+          this.setState({messages: newNotification});
+          break;
+        case "clientUpdate":
+        this.setState({
+          clientCount: JSON.parse(event.data).numberOfClients
+        });
+        break;
+        default:
+          // show an error in the console if the message type is unknown
+          throw new Error("Unknown event type " + data.type);
+      }
+    }
+  }
+
+  randomHexColor() {
+    var randomColor = Math.floor(Math.random()*16777215).toString(16);
+    return "#"+randomColor.toString();
   }
 
   setCurrentUser(user) {
@@ -42,27 +70,40 @@ class App extends Component {
     });
   }
 
+  addNotification(currentUser, newUser) {
+    const newNotification = {
+      currentUser: currentUser,
+      newUser: newUser,
+      type: 'postNotification',
+      content: `${currentUser} changed their name to ${newUser}.`
+    }
+    this.socket.send(JSON.stringify(newNotification));
+  }
+
   addMessage(content) {
     const newMessage = {
-      id: this.state.messages.length,
-      type: 'chat',
+      type: 'postMessage',
       username: this.state.currentUser,
       content: content,
-
+      color: this.userColorMap[this.state.currentUser]
     }
-    this.setState({
-      messages: this.state.messages.concat(newMessage)
-    });
-    console.log(this.state.messages);
+    //sending the message to the Socket Server.
+    this.socket.send(JSON.stringify(newMessage));
   }
 
   render() {
     return (
       <div>
+        <nav className="navbar">
+        <a href="/" className="navbar-brand">Chatty</a>
+        <h2 className="navbar-clients">{this.state.clientCount} Client(s)</h2>
+        </nav>
         <MessageList messages={this.state.messages} />
-        <ChatBar 
-        setCurrentUser={this.setCurrentUser.bind(this)} 
-        addMessage={this.addMessage.bind(this)}/>
+        <ChatBar
+          currentUser={this.state.currentUser} 
+          setCurrentUser={this.setCurrentUser.bind(this)}
+          addNotification={this.addNotification} 
+          addMessage={this.addMessage}/>
       </div>
     );
   }

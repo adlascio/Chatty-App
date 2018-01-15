@@ -32,6 +32,8 @@ class App extends Component {
 			switch (data.type) {
 				case "incomingMessage":
 					// handle incoming message
+					console.log(this.userColorMap);
+					console.log(data.username);
 					this.userColorMap[data.username] = this.userColorMap[data.username] || this.randomHexColor();
 					data.color = this.userColorMap[data.username];
 					let newMessages = this.state.messages.concat(data);
@@ -41,12 +43,10 @@ class App extends Component {
 					// handle incoming notification
 					let oldUser = data.currentUser;
 					let newUser = data.newUser;
-					let newUserColor = this.userColorMap[newUser];
-					if (oldUser === 'Anonymous') {
-						newUserColor = this.randomHexColor();
-					} else {
-						newUserColor = this.userColorMap[oldUser];
-					}
+					console.log(this.userColorMap[oldUser]);
+					let newUserColor = this.userColorMap[oldUser];
+					this.userColorMap[newUser] = newUserColor;
+					console.log(this.userColorMap);
 					let newNotification = this.state.messages.concat(data);
 					this.setState({ messages: newNotification });
 					break;

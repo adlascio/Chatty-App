@@ -19,6 +19,10 @@ npm start
 open http://localhost:3000
 ```
 
+### Screenshot
+
+!['Screenshot of Chatty App'](https://github.com/adlascio/Chatty-App/blob/master/docs/Screenshot%20from%202018-01-15%2011-31-37.png)
+
 
 
 ### Dependencies
